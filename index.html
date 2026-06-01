@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dia Saiyan">
+<meta name="theme-color" content="#F5A300">
+<title>Meu Dia Saiyan</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & BASE ── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:#0D0D2B;font-family:'Rajdhani',sans-serif;overflow-x:hidden;}
+
+/* ── SPLASH SCREEN ── */
+#splash{
+  position:fixed;inset:0;z-index:9999;
+  background:#0D0D2B;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity 0.6s ease;
+}
+#splash.hide{opacity:0;pointer-events:none;}
+.splash-ball{
+  width:90px;height:90px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#fff8c0,#F5A300 45%,#c47000 80%);
+  border:3px solid #8B5A00;
+  box-shadow:0 0 40px rgba(255,160,0,0.6),0 0 80px rgba(255,100,0,0.3);
+  animation:pulse 0.8s ease-in-out infinite alternate;
+  margin-bottom:24px;
+}
+@keyframes pulse{from{transform:scale(1);box-shadow:0 0 40px rgba(255,160,0,0.6);}to{transform:scale(1.08);box-shadow:0 0 60px rgba(255,160,0,0.9);}}
+.splash-title{font-family:'Bangers',cursive;font-size:36px;letter-spacing:4px;
+  background:linear-gradient(180deg,#FFE566,#F5A300,#FF6B00);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.splash-sub{font-size:13px;color:#7BA7FF;letter-spacing:3px;margin-top:6px;font-weight:600;}
+.splash-loading{margin-top:30px;display:flex;gap:8px;}
+.splash-dot{width:8px;height:8px;border-radius:50%;background:#F5A300;animation:dot 1s ease-in-out infinite;}
+.splash-dot:nth-child(2){animation-delay:0.2s;}
+.splash-dot:nth-child(3){animation-delay:0.4s;}
+@keyframes dot{0%,80%,100%{transform:scale(0.6);opacity:0.4;}40%{transform:scale(1);opacity:1;}}
+
+/* ── APP SHELL ── */
+#app{height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── HEADER ── */
+.app-header{
+  background:linear-gradient(180deg,rgba(20,5,0,0.98),rgba(13,13,43,0.95));
+  border-bottom:2px solid #F5A300;
+  padding:10px 16px 8px;
+  flex-shrink:0;
+  position:relative;
+}
+.aura-header{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(255,160,0,0.12),transparent 70%);
+  pointer-events:none;
+}
+.header-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.header-left{display:flex;align-items:center;gap:10px;}
+.dbz-ball-sm{
+  width:18px;height:18px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#fff8c0,#F5A300 50%,#c47000);
+  border:1.5px solid #8B5A00;flex-shrink:0;
+}
+.app-title{font-family:'Bangers',cursive;font-size:26px;letter-spacing:3px;
+  background:linear-gradient(180deg,#FFE566,#F5A300,#FF6B00);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.streak-badge{
+  display:flex;align-items:center;gap:4px;
+  background:rgba(255,107,0,0.2);border:1.5px solid rgba(255,107,0,0.5);
+  border-radius:20px;padding:3px 10px;
+  font-family:'Bangers',cursive;font-size:14px;color:#FF8C42;letter-spacing:1px;
+}
+.header-row2{display:flex;align-items:center;gap:10px;}
+.header-date{font-size:11px;color:#7BA7FF;font-weight:700;letter-spacing:1px;flex:1;}
+.ki-mini{display:flex;align-items:center;gap:6px;}
+.ki-mini-label{font-size:10px;color:#F5A300;font-weight:700;letter-spacing:1px;}
+.ki-mini-bar{width:80px;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;}
+.ki-mini-fill{height:100%;background:linear-gradient(90deg,#FF6B00,#FFD700);border-radius:3px;transition:width 0.4s;}
+.ki-mini-pct{font-size:10px;color:#FFD700;font-weight:700;min-width:28px;text-align:right;}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{
+  display:flex;background:rgba(0,0,0,0.85);
+  border-top:1.5px solid rgba(245,163,0,0.25);
+  flex-shrink:0;
+}
+.nav-btn{
+  flex:1;padding:10px 4px 8px;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  background:none;border:none;cursor:pointer;
+  font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;
+  color:#555;letter-spacing:0.5px;transition:color 0.2s;
+  position:relative;
+}
+.nav-btn.active{color:#F5A300;}
+.nav-btn.active::before{
+  content:'';position:absolute;top:0;left:15%;right:15%;height:2px;
+  background:linear-gradient(90deg,transparent,#F5A300,transparent);
+  border-radius:2px;
+}
+.nav-icon{font-size:20px;line-height:1;}
+
+/* ── SCROLL CONTENT ── */
+.screen{display:none;flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
+.screen.active{display:flex;flex-direction:column;}
+
+/* ── DAY TABS ── */
+.day-tabs{
+  display:flex;background:rgba(0,0,0,0.6);
+  border-bottom:1px solid rgba(245,163,0,0.2);
+  flex-shrink:0;overflow-x:auto;
+  scrollbar-width:none;-ms-overflow-style:none;
+}
+.day-tabs::-webkit-scrollbar{display:none;}
+.day-tab{
+  flex:1;min-width:52px;padding:8px 4px;
+  font-family:'Bangers',cursive;font-size:13px;letter-spacing:0.5px;
+  color:#555;background:none;border:none;cursor:pointer;
+  white-space:nowrap;transition:color 0.2s;position:relative;
+}
+.day-tab.active{color:#FFE566;}
+.day-tab.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#F5A300,transparent);}
+.day-tab.completed .day-dot{background:#4ADE80;}
+.day-dot{width:5px;height:5px;border-radius:50%;background:transparent;margin:2px auto 0;transition:background 0.3s;}
+
+/* ── TASKS SCREEN ── */
+.tasks-scroll{flex:1;overflow-y:auto;padding:10px 12px;padding-bottom:16px;}
+
+.section-card{
+  border-radius:12px;overflow:hidden;
+  border:1.5px solid;margin-bottom:12px;
+  background:rgba(0,0,0,0.45);
+}
+.section-manha{border-color:rgba(255,160,0,0.45);}
+.section-tarde{border-color:rgba(100,160,255,0.45);}
+
+.sec-head{padding:10px 14px;display:flex;align-items:center;gap:8px;}
+.section-manha .sec-head{background:linear-gradient(90deg,rgba(200,80,0,0.7),rgba(20,5,0,0.7));border-bottom:1px solid rgba(255,160,0,0.3);}
+.section-tarde .sec-head{background:linear-gradient(90deg,rgba(0,50,160,0.7),rgba(0,5,30,0.7));border-bottom:1px solid rgba(100,160,255,0.3);}
+.sec-icon{font-size:20px;line-height:1;}
+.sec-label{font-family:'Bangers',cursive;font-size:15px;letter-spacing:2px;flex:1;}
+.section-manha .sec-label{color:#FFD700;}
+.section-tarde .sec-label{color:#93C5FD;}
+.sec-time{font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;}
+.section-manha .sec-time{background:rgba(255,160,0,0.15);color:#F5A300;border:1px solid rgba(255,160,0,0.3);}
+.section-tarde .sec-time{background:rgba(100,160,255,0.12);color:#93C5FD;border:1px solid rgba(100,160,255,0.3);}
+
+.sec-tasks{padding:6px 8px;}
+.task-row{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 8px;border-radius:8px;
+  cursor:pointer;transition:background 0.15s;
+  margin-bottom:2px;border:1px solid transparent;
+  user-select:none;-webkit-user-select:none;
+}
+.task-row:active{background:rgba(255,255,255,0.07);}
+.task-row.done{opacity:0.5;}
+.chk{
+  width:26px;height:26px;border-radius:7px;
+  border:2px solid #3a3a5c;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:14px;color:#FFD700;
+  transition:all 0.25s;background:rgba(0,0,0,0.5);
+}
+.task-row.done .chk{background:linear-gradient(135deg,#F5A300,#FF6B00);border-color:#F5A300;}
+.t-emoji{font-size:18px;width:26px;text-align:center;flex-shrink:0;}
+.t-info{flex:1;min-width:0;}
+.t-name{font-size:13px;font-weight:700;color:#E0E0FF;line-height:1.2;}
+.task-row.done .t-name{text-decoration:line-through;color:#444;}
+.t-time{font-size:10px;color:#555;font-weight:600;margin-top:1px;}
+.t-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;flex-shrink:0;text-transform:uppercase;}
+.badge-sp{background:rgba(255,160,0,0.18);color:#F5A300;border:1px solid rgba(255,160,0,0.35);}
+.badge-ev{background:rgba(0,200,100,0.12);color:#4ADE80;border:1px solid rgba(0,200,100,0.3);}
+
+.sec-foot{padding:5px 12px 9px;display:flex;align-items:center;gap:8px;}
+.sec-cnt{font-size:10px;font-weight:700;min-width:34px;}
+.section-manha .sec-cnt{color:#F5A300;}
+.section-tarde .sec-cnt{color:#93C5FD;}
+.sec-track{flex:1;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;}
+.sec-fill{height:100%;border-radius:3px;transition:width 0.4s;}
+.section-manha .sec-fill{background:linear-gradient(90deg,#FF6B00,#FFD700);}
+.section-tarde .sec-fill{background:linear-gradient(90deg,#3B82F6,#93C5FD);}
+.sec-ki{font-size:11px;}
+
+/* ── REWARD CARD ── */
+.reward-card{
+  border-radius:14px;border:2px solid rgba(255,215,0,0.4);
+  background:linear-gradient(135deg,rgba(30,10,0,0.95),rgba(0,5,30,0.95));
+  padding:14px 16px;margin-bottom:14px;
+}
+.reward-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.reward-ki{text-align:center;}
+.rw-lbl{font-family:'Bangers',cursive;font-size:12px;letter-spacing:2px;color:#F5A300;}
+.rw-val{font-family:'Bangers',cursive;font-size:30px;color:#FFD700;line-height:1;}
+.reward-center{text-align:center;}
+.rw-dragon{font-size:42px;line-height:1;}
+.rw-phase{font-family:'Bangers',cursive;font-size:13px;color:#FFD700;letter-spacing:1px;margin-top:2px;}
+.reward-stars{text-align:center;}
+.rw-stars{font-size:18px;letter-spacing:3px;}
+.rw-msg{font-size:12px;font-weight:700;color:#93C5FD;text-align:center;margin-top:8px;line-height:1.4;}
+
+/* ── HISTORY SCREEN ── */
+.history-scroll{flex:1;overflow-y:auto;padding:14px 14px 24px;}
+.hist-title{font-family:'Bangers',cursive;font-size:20px;letter-spacing:3px;color:#F5A300;margin-bottom:14px;text-align:center;}
+
+.streak-card{
+  border-radius:14px;border:2px solid rgba(255,107,0,0.5);
+  background:linear-gradient(135deg,rgba(40,15,0,0.95),rgba(10,5,20,0.95));
+  padding:16px;margin-bottom:16px;
+  text-align:center;
+}
+.streak-fire{font-size:44px;margin-bottom:4px;}
+.streak-num{font-family:'Bangers',cursive;font-size:52px;color:#FF8C42;line-height:1;letter-spacing:2px;}
+.streak-lbl{font-size:12px;color:#888;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+.streak-best{font-size:11px;color:#555;font-weight:600;margin-top:6px;}
+
+.week-grid{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
+  margin-bottom:16px;
+}
+.week-day{
+  border-radius:10px;padding:8px 4px;text-align:center;
+  background:rgba(0,0,0,0.4);border:1.5px solid rgba(255,255,255,0.05);
+  transition:all 0.2s;
+}
+.week-day.done{background:rgba(0,180,80,0.15);border-color:rgba(0,200,100,0.35);}
+.week-day.partial{background:rgba(245,163,0,0.12);border-color:rgba(245,163,0,0.3);}
+.week-day.today{border-color:rgba(245,163,0,0.7);}
+.wd-name{font-size:9px;color:#555;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;}
+.week-day.done .wd-name{color:#4ADE80;}
+.week-day.partial .wd-name{color:#F5A300;}
+.week-day.today .wd-name{color:#FFD700;}
+.wd-icon{font-size:18px;margin:4px 0;}
+.wd-pct{font-size:9px;font-weight:700;color:#444;}
+.week-day.done .wd-pct{color:#4ADE80;}
+.week-day.partial .wd-pct{color:#F5A300;}
+
+.hist-section-title{font-family:'Bangers',cursive;font-size:15px;letter-spacing:2px;color:#7BA7FF;margin-bottom:8px;}
+
+.hist-month{margin-bottom:16px;}
+.hist-month-name{font-size:11px;color:#555;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+.hist-entries{display:flex;flex-direction:column;gap:4px;}
+.hist-entry{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;border-radius:8px;
+  background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05);
+}
+.he-date{font-size:12px;color:#777;font-weight:700;min-width:80px;}
+.he-bar-wrap{flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;}
+.he-bar{height:100%;border-radius:3px;}
+.he-bar.full{background:linear-gradient(90deg,#22C55E,#4ADE80);}
+.he-bar.partial{background:linear-gradient(90deg,#F5A300,#FFD700);}
+.he-bar.empty{background:#222;}
+.he-pct{font-size:11px;font-weight:700;min-width:34px;text-align:right;}
+.he-pct.full{color:#4ADE80;}
+.he-pct.partial{color:#F5A300;}
+.he-pct.empty{color:#444;}
+.he-icon{font-size:14px;}
+
+/* ── ACHIEVEMENTS SCREEN ── */
+.ach-scroll{flex:1;overflow-y:auto;padding:14px 14px 24px;}
+.ach-title{font-family:'Bangers',cursive;font-size:20px;letter-spacing:3px;color:#F5A300;margin-bottom:14px;text-align:center;}
+.ach-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.ach-card{
+  border-radius:12px;padding:14px 12px;text-align:center;
+  background:rgba(0,0,0,0.45);border:1.5px solid rgba(255,255,255,0.06);
+  transition:all 0.2s;
+}
+.ach-card.unlocked{background:rgba(20,10,0,0.7);border-color:rgba(255,160,0,0.4);}
+.ach-icon{font-size:32px;margin-bottom:6px;filter:grayscale(1);opacity:0.3;}
+.ach-card.unlocked .ach-icon{filter:none;opacity:1;}
+.ach-name{font-family:'Bangers',cursive;font-size:13px;letter-spacing:1px;color:#444;}
+.ach-card.unlocked .ach-name{color:#FFD700;}
+.ach-desc{font-size:10px;color:#333;font-weight:600;margin-top:3px;line-height:1.3;}
+.ach-card.unlocked .ach-desc{color:#888;}
+.ach-lock{font-size:10px;color:#333;margin-top:4px;}
+.ach-card.unlocked .ach-lock{color:#4ADE80;}
+
+/* ── SETTINGS SCREEN ── */
+.settings-scroll{flex:1;overflow-y:auto;padding:14px 14px 24px;}
+.set-title{font-family:'Bangers',cursive;font-size:20px;letter-spacing:3px;color:#F5A300;margin-bottom:14px;text-align:center;}
+.set-card{border-radius:12px;background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.06);overflow:hidden;margin-bottom:12px;}
+.set-row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.set-row:last-child{border-bottom:none;}
+.set-icon{font-size:20px;width:28px;text-align:center;}
+.set-info{flex:1;}
+.set-name{font-size:13px;font-weight:700;color:#E0E0FF;}
+.set-sub{font-size:10px;color:#555;font-weight:600;margin-top:1px;}
+.set-action{font-size:12px;color:#F5A300;font-weight:700;}
+.name-input{
+  background:rgba(255,255,255,0.06);border:1.5px solid rgba(245,163,0,0.3);
+  border-radius:8px;padding:8px 12px;color:#FFD700;
+  font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;
+  width:100%;margin-top:6px;outline:none;
+}
+.name-input:focus{border-color:#F5A300;}
+.save-btn{
+  width:100%;margin-top:8px;padding:10px;
+  font-family:'Bangers',cursive;font-size:15px;letter-spacing:2px;
+  background:linear-gradient(135deg,rgba(245,163,0,0.25),rgba(255,107,0,0.15));
+  border:1.5px solid rgba(245,163,0,0.5);border-radius:8px;
+  color:#FFD700;cursor:pointer;transition:all 0.2s;
+}
+.save-btn:active{opacity:0.7;}
+.danger-btn{
+  width:100%;padding:10px;margin-top:4px;
+  font-family:'Bangers',cursive;font-size:14px;letter-spacing:2px;
+  background:rgba(200,30,30,0.12);border:1px solid rgba(200,30,30,0.3);
+  border-radius:8px;color:#F87171;cursor:pointer;
+}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:rgba(20,10,0,0.95);border:1.5px solid #F5A300;border-radius:12px;
+  padding:10px 20px;font-family:'Bangers',cursive;font-size:14px;letter-spacing:1px;
+  color:#FFD700;z-index:1000;opacity:0;transition:all 0.3s;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── COMPLETE OVERLAY ── */
+.complete-overlay{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,0.85);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:30px;
+}
+.complete-overlay.show{display:flex;}
+.co-dragon{font-size:80px;margin-bottom:16px;animation:bounce 0.6s ease infinite alternate;}
+@keyframes bounce{from{transform:translateY(0);}to{transform:translateY(-10px);}}
+.co-title{font-family:'Bangers',cursive;font-size:38px;letter-spacing:4px;
+  background:linear-gradient(180deg,#FFE566,#F5A300,#FF6B00);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:8px;
+}
+.co-sub{font-size:14px;color:#93C5FD;font-weight:700;letter-spacing:1px;margin-bottom:20px;}
+.co-stars{font-size:32px;letter-spacing:6px;margin-bottom:24px;}
+.co-close{
+  font-family:'Bangers',cursive;font-size:16px;letter-spacing:2px;
+  padding:12px 32px;border-radius:10px;
+  background:linear-gradient(135deg,rgba(245,163,0,0.3),rgba(255,107,0,0.2));
+  border:2px solid rgba(245,163,0,0.6);color:#FFD700;cursor:pointer;
+}
+
+/* scrollbars */
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(245,163,0,0.3);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-ball"></div>
+  <div class="splash-title">MEU DIA SAIYAN</div>
+  <div class="splash-sub">Carregando poder...</div>
+  <div class="splash-loading">
+    <div class="splash-dot"></div>
+    <div class="splash-dot"></div>
+    <div class="splash-dot"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- HEADER -->
+  <div class="app-header">
+    <div class="aura-header"></div>
+    <div class="header-row1">
+      <div class="header-left">
+        <div class="dbz-ball-sm"></div>
+        <span class="app-title">MEU DIA SAIYAN</span>
+      </div>
+      <div class="streak-badge">🔥 <span id="streak-num">0</span> dias</div>
+    </div>
+    <div class="header-row2">
+      <span class="header-date" id="header-date">—</span>
+      <div class="ki-mini">
+        <span class="ki-mini-label">⚡KI</span>
+        <div class="ki-mini-bar"><div class="ki-mini-fill" id="ki-mini-fill" style="width:0%"></div></div>
+        <span class="ki-mini-pct" id="ki-mini-pct">0%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: TAREFAS -->
+  <div id="screen-tasks" class="screen active">
+    <div class="day-tabs" id="day-tabs"></div>
+    <div class="tasks-scroll">
+
+      <!-- MANHÃ -->
+      <div class="section-card section-manha">
+        <div class="sec-head">
+          <span class="sec-icon">🌅</span>
+          <span class="sec-label">TREINAMENTO MATINAL</span>
+          <span class="sec-time">06:30–07:40</span>
+        </div>
+        <div class="sec-tasks">
+          <div class="task-row" onclick="toggle(this)" data-id="m1"><div class="chk">✓</div><div class="t-emoji">🛏️</div><div class="t-info"><div class="t-name">Arrumar a cama</div><div class="t-time">06:30 · máx 5 min</div></div></div>
+          <div class="task-row" onclick="toggle(this)" data-id="m2"><div class="chk">✓</div><div class="t-emoji">🚽</div><div class="t-info"><div class="t-name">Fazer cocô</div><div class="t-time">06:35 · máx 10 min</div></div></div>
+          <div class="task-row" onclick="toggle(this)" data-id="m3"><div class="chk">✓</div><div class="t-emoji">🦷</div><div class="t-info"><div class="t-name">Escovar os dentes</div><div class="t-time">06:45 · máx 3 min</div></div></div>
+          <div class="task-row" onclick="toggle(this)" data-id="m4"><div class="chk">✓</div><div class="t-emoji">🚿</div><div class="t-info"><div class="t-name">Tomar banho</div><div class="t-time">06:48 · máx 15 min</div></div></div>
+          <div class="task-row" onclick="toggle(this)" data-id="m5"><div class="chk">✓</div><div class="t-emoji">👕</div><div class="t-info"><div class="t-name">Vestir o uniforme</div><div class="t-time">07:03 · máx 7 min</div></div></div>
+          <div class="task-row" onclick="toggle(this)" data-id="m6"><div class="chk">✓</div><div class="t-emoji">🍳</div><div class="t-info"><div class="t-name">Café da manhã</div><div class="t-time">07:10 · máx 25 min</div></div></div>
+        </div>
+        <div class="sec-foot section-manha">
+          <span class="sec-cnt" id="cnt-m">0/6</span>
+          <div class="sec-track"><div class="sec-fill" id="bar-m" style="width:0%"></div></div>
+          <span class="sec-ki" id="ki-m">○○○○○○</span>
+        </div>
+      </div>
+
+      <!-- TARDE -->
+      <div class="section-card section-tarde">
+        <div class="sec-head">
+          <span class="sec-icon">⚔️</span>
+          <span class="sec-label">MISSÕES DA TARDE</span>
+          <span class="sec-time">15:00–20:30</span>
+        </div>
+        <div class="sec-tasks">
+          <div class="task-row" onclick="toggle(this)" data-id="t1"><div class="chk">✓</div><div class="t-emoji">🎒</div><div class="t-info"><div class="t-name">Preparar mochila</div><div class="t-time">15:00 · máx 10 min</div></div><span class="t-badge badge-ev">Sempre</span></div>
+          <div class="task-row" onclick="toggle(this)" data-id="t2"><div class="chk">✓</div><div class="t-emoji">🚿</div><div class="t-info"><div class="t-name">Banho ao chegar</div><div class="t-time">15:10 · máx 15 min</div></div></div>
+          <div class="task-row" onclick="toggle(this)" data-id="t3"><div class="chk">✓</div><div class="t-emoji">🧺</div><div class="t-info"><div class="t-name">Roupa suja no cesto</div><div class="t-time">15:25 · máx 2 min</div></div></div>
+          <div class="task-row" onclick="toggle(this)" data-id="t4"><div class="chk">✓</div><div class="t-emoji">🎮</div><div class="t-info"><div class="t-name">Relaxar (Hyperbolic Time!)</div><div class="t-time">15:30 · 30 min</div></div><span class="t-badge badge-ev">Recarga</span></div>
+          <div class="task-row" onclick="toggle(this)" data-id="t5"><div class="chk">✓</div><div class="t-emoji">🍖</div><div class="t-info"><div class="t-name">Merenda do guerreiro</div><div class="t-time">16:00 · máx 15 min</div></div></div>
+          <div class="task-row day-task day-0" onclick="toggle(this)" data-id="t6a"><div class="chk">✓</div><div class="t-emoji">🎵</div><div class="t-info"><div class="t-name">Aula de Solfejo</div><div class="t-time">18:20 · 60 min</div></div><span class="t-badge badge-sp">SEG</span></div>
+          <div class="task-row day-task day-1" onclick="toggle(this)" data-id="t6b"><div class="chk">✓</div><div class="t-emoji">🎻</div><div class="t-info"><div class="t-name">Aula de Violino</div><div class="t-time">18:00 · 60 min</div></div><span class="t-badge badge-sp">TER</span></div>
+          <div class="task-row day-task day-2" onclick="toggle(this)" data-id="t6c"><div class="chk">✓</div><div class="t-emoji">🎭</div><div class="t-info"><div class="t-name">Aula de Teatro</div><div class="t-time">16:00 · 90 min</div></div><span class="t-badge badge-sp">QUA</span></div>
+          <div class="task-row" onclick="toggle(this)" data-id="t7"><div class="chk">✓</div><div class="t-emoji">📚</div><div class="t-info"><div class="t-name">Revisar matérias</div><div class="t-time">17:00 · 15 min</div></div><span class="t-badge badge-ev">Sempre</span></div>
+          <div class="task-row" onclick="toggle(this)" data-id="t8"><div class="chk">✓</div><div class="t-emoji">🦜</div><div class="t-info"><div class="t-name">Duolingo</div><div class="t-time">19:00 · 15 min</div></div><span class="t-badge badge-ev">Sempre</span></div>
+          <div class="task-row" onclick="toggle(this)" data-id="t9"><div class="chk">✓</div><div class="t-emoji">📖</div><div class="t-info"><div class="t-name">Leitura livre</div><div class="t-time">19:15 · 15 min</div></div></div>
+          <div class="task-row" onclick="toggle(this)" data-id="t10"><div class="chk">✓</div><div class="t-emoji">🧸</div><div class="t-info"><div class="t-name">Preparar para dormir</div><div class="t-time">19:30 · máx 20 min</div></div></div>
+          <div class="task-row" onclick="toggle(this)" data-id="t11"><div class="chk">✓</div><div class="t-emoji">🌙</div><div class="t-info"><div class="t-name">Na cama + Meditação</div><div class="t-time">20:00 · 15 min</div></div></div>
+        </div>
+        <div class="sec-foot section-tarde">
+          <span class="sec-cnt" id="cnt-t">0/11</span>
+          <div class="sec-track"><div class="sec-fill" id="bar-t" style="width:0%"></div></div>
+          <span class="sec-ki" id="ki-t">○○○○○</span>
+        </div>
+      </div>
+
+      <!-- REWARD -->
+      <div class="reward-card">
+        <div class="reward-row1">
+          <div class="reward-ki"><div class="rw-lbl">⚡ KI TOTAL</div><div class="rw-val" id="rw-ki">0</div><div style="font-size:9px;color:#555;font-weight:700;letter-spacing:1px;">PODER</div></div>
+          <div class="reward-center"><div class="rw-dragon">🐉</div><div class="rw-phase" id="rw-phase">Humano</div></div>
+          <div class="reward-stars"><div class="rw-lbl">🌟 ESFERAS</div><div class="rw-stars" id="rw-stars">○○○○○○○</div></div>
+        </div>
+        <div class="rw-msg" id="rw-msg">Complete as missões e libere seu Ki!</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SCREEN: HISTÓRICO -->
+  <div id="screen-history" class="screen">
+    <div class="history-scroll">
+      <div class="hist-title">⚡ PODER ACUMULADO</div>
+
+      <div class="streak-card">
+        <div class="streak-fire">🔥</div>
+        <div class="streak-num" id="hist-streak">0</div>
+        <div class="streak-lbl">dias consecutivos</div>
+        <div class="streak-best" id="streak-best">Melhor: 0 dias</div>
+      </div>
+
+      <div class="hist-section-title">Esta Semana</div>
+      <div class="week-grid" id="week-grid"></div>
+
+      <div class="hist-section-title">Histórico Completo</div>
+      <div id="hist-entries"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: CONQUISTAS -->
+  <div id="screen-ach" class="screen">
+    <div class="ach-scroll">
+      <div class="ach-title">🏆 CONQUISTAS</div>
+      <div class="ach-grid" id="ach-grid"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: CONFIGURAÇÕES -->
+  <div id="screen-settings" class="screen">
+    <div class="settings-scroll">
+      <div class="set-title">⚙️ CONFIGURAÇÕES</div>
+      <div class="set-card">
+        <div class="set-row">
+          <span class="set-icon">👤</span>
+          <div class="set-info">
+            <div class="set-name">Nome do Guerreiro</div>
+            <div class="set-sub">Aparece no app</div>
+          </div>
+        </div>
+        <div style="padding:4px 14px 12px;">
+          <input class="name-input" id="name-input" type="text" placeholder="Ex: Kakaroto" maxlength="20">
+          <button class="save-btn" onclick="saveName()">💾 SALVAR NOME</button>
+        </div>
+      </div>
+      <div class="set-card">
+        <div class="set-row">
+          <span class="set-icon">📱</span>
+          <div class="set-info">
+            <div class="set-name">Instalar como App</div>
+            <div class="set-sub">Adicionar à tela inicial do Android</div>
+          </div>
+          <span class="set-action" onclick="triggerInstall()">INSTALAR →</span>
+        </div>
+        <div class="set-row">
+          <span class="set-icon">🔄</span>
+          <div class="set-info">
+            <div class="set-name">Reiniciar dia atual</div>
+            <div class="set-sub">Apaga checks do dia de hoje</div>
+          </div>
+          <span class="set-action" onclick="resetToday()">RESET →</span>
+        </div>
+      </div>
+      <div class="set-card">
+        <div class="set-row">
+          <span class="set-icon">⚠️</span>
+          <div class="set-info">
+            <div class="set-name">Apagar todo o histórico</div>
+            <div class="set-sub">Não pode ser desfeito</div>
+          </div>
+        </div>
+        <div style="padding:4px 14px 12px;">
+          <button class="danger-btn" onclick="clearAllData()">🗑️ APAGAR TUDO</button>
+        </div>
+      </div>
+      <div style="text-align:center;padding:16px 0;font-size:10px;color:#333;font-weight:700;letter-spacing:1px;">
+        MEU DIA SAIYAN v1.0 · Dragon Ball Super
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <button class="nav-btn active" id="nav-tasks" onclick="showScreen('tasks')">
+      <span class="nav-icon">⚔️</span>MISSÕES
+    </button>
+    <button class="nav-btn" id="nav-history" onclick="showScreen('history')">
+      <span class="nav-icon">📊</span>PODER
+    </button>
+    <button class="nav-btn" id="nav-ach" onclick="showScreen('ach')">
+      <span class="nav-icon">🏆</span>CONQUISTAS
+    </button>
+    <button class="nav-btn" id="nav-settings" onclick="showScreen('settings')">
+      <span class="nav-icon">⚙️</span>CONFIG
+    </button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- COMPLETE OVERLAY -->
+<div class="complete-overlay" id="complete-overlay">
+  <div class="co-dragon">🐉</div>
+  <div class="co-title">DIA COMPLETO!</div>
+  <div class="co-sub" id="co-sub">Você completou todas as missões!</div>
+  <div class="co-stars">⭐⭐⭐⭐⭐</div>
+  <button class="co-close" onclick="closeComplete()">CONTINUAR →</button>
+</div>
+
+<script>
+// ── DATA ──
+const DAY_TASKS = [['t6a'],['t6b'],['t6c'],[],[],[],[]];
+const TARDE_FIXED = ['t1','t2','t3','t4','t5','t7','t8','t9','t10','t11'];
+const ALL_M = ['m1','m2','m3','m4','m5','m6'];
+const PHASES = ['Humano','Guerreiro Z','Super Saiyajin','SSJ 2','SSJ 3','SSJ God','Ultra Instinto ✨'];
+const PHASE_ICONS = ['👦','⚔️','💛','⚡','🌩️','🔴','⚪'];
+const MSGS = [
+  'Complete as missões e libere seu Ki!',
+  'O treinamento começa agora! 💪',
+  'Seu Ki está aumentando... ⚡',
+  'Você está ficando mais forte! 🔥',
+  'Super Saiyajin está próximo! 💛',
+  'Poder incrível! Continue! 🌟',
+  '🔥 ULTRA INSTINTO ATIVADO! 🔥'
+];
+const ACHIEVEMENTS = [
+  {id:'first',icon:'⭐',name:'Primeira Missão',desc:'Complete qualquer tarefa',check:s=>s.totalDone>=1},
+  {id:'morning',icon:'🌅',name:'Guerreiro Matinal',desc:'Complete toda a manhã',check:s=>s.morningDone>=6},
+  {id:'full_day',icon:'🏆',name:'Dia Perfeito',desc:'Complete todas as tarefas',check:s=>s.isComplete},
+  {id:'streak3',icon:'🔥',name:'Em Chamas',desc:'3 dias seguidos',check:s=>s.streak>=3},
+  {id:'streak7',icon:'💥',name:'Super Saiyajin',desc:'7 dias seguidos',check:s=>s.streak>=7},
+  {id:'streak30',icon:'🐉',name:'Lendário',desc:'30 dias seguidos',check:s=>s.streak>=30},
+  {id:'violin',icon:'🎻',name:'Músico Z',desc:'Complete Violino 5x',check:s=>s.violinCount>=5},
+  {id:'reading',icon:'📖',name:'Devorador de Livros',desc:'Leitura 10 dias',check:s=>s.readingCount>=10},
+];
+
+let currentDay = new Date().getDay(); // 0=dom,1=seg...
+// Convert: our tabs are 0=Seg..6=Dom
+// JS: 0=Sun,1=Mon...6=Sat  → our: Mon=0,...Sun=6
+function jsDayToTab(d){ return d === 0 ? 6 : d - 1; }
+let activeTab = jsDayToTab(currentDay);
+
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+
+function loadState(){
+  try{ return JSON.parse(localStorage.getItem('diasaiyan_v2') || '{}'); }
+  catch(e){ return {}; }
+}
+function saveState(s){ localStorage.setItem('diasaiyan_v2', JSON.stringify(s)); }
+
+let state = loadState();
+if(!state.history) state.history = {};
+if(!state.name) state.name = 'Guerreiro';
+if(!state.bestStreak) state.bestStreak = 0;
+if(!state.achUnlocked) state.achUnlocked = [];
+
+// ── TABS ──
+function buildTabs(){
+  const days = ['☀️ SEG','⚡ TER','🔥 QUA','💥 QUI','🐲 SEX','🌙 SÁB','🌙 DOM'];
+  const container = document.getElementById('day-tabs');
+  container.innerHTML = '';
+  days.forEach((d,i) => {
+    const btn = document.createElement('button');
+    btn.className = 'day-tab' + (i === activeTab ? ' active' : '');
+    const key = getKeyForTab(i);
+    const entry = state.history[key];
+    const pct = entry ? entry.pct : 0;
+    let dotCls = '';
+    if(pct === 100) dotCls = 'done';
+    else if(pct > 0) dotCls = 'partial';
+    btn.innerHTML = d + `<div class="day-dot ${dotCls}"></div>`;
+    btn.onclick = () => setTab(i);
+    container.appendChild(btn);
+  });
+}
+
+function getKeyForTab(tab){
+  // Get date for a tab index relative to this week
+  const now = new Date();
+  const todayTab = jsDayToTab(now.getDay());
+  const diff = tab - todayTab;
+  const d = new Date(now);
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0,10);
+}
+
+function setTab(i){
+  activeTab = i;
+  buildTabs();
+  loadTabData();
+  updateUI();
+}
+
+function loadTabData(){
+  const key = getKeyForTab(activeTab);
+  const entry = state.history[key] || { checked: {} };
+  const checked = entry.checked || {};
+
+  // Show/hide day-specific tasks
+  document.querySelectorAll('.day-task').forEach(el => el.style.display = 'none');
+  (DAY_TASKS[activeTab] || []).forEach(id => {
+    const el = document.querySelector('[data-id="' + id + '"]');
+    if(el) el.style.display = 'flex';
+  });
+
+  // Apply checked state
+  document.querySelectorAll('.task-row').forEach(el => {
+    const id = el.dataset.id;
+    const done = !!checked[id];
+    el.classList.toggle('done', done);
+    el.querySelector('.chk').textContent = done ? '✓' : '';
+  });
+}
+
+function toggle(el){
+  const id = el.dataset.id;
+  const key = getKeyForTab(activeTab);
+  if(!state.history[key]) state.history[key] = { checked: {} };
+  if(!state.history[key].checked) state.history[key].checked = {};
+  state.history[key].checked[id] = !state.history[key].checked[id];
+  const done = state.history[key].checked[id];
+  el.classList.toggle('done', done);
+  el.querySelector('.chk').textContent = done ? '✓' : '';
+
+  // Haptic feedback
+  if(navigator.vibrate) navigator.vibrate(done ? [30] : [15]);
+
+  updateUI();
+  checkAchievements();
+  saveState(state);
+}
+
+function getTardeIds(){
+  return [...TARDE_FIXED, ...(DAY_TASKS[activeTab] || [])];
+}
+
+function getStats(){
+  const key = getKeyForTab(activeTab);
+  const checked = (state.history[key] || {}).checked || {};
+  const dM = ALL_M.filter(id => checked[id]).length;
+  const tIds = getTardeIds();
+  const dT = tIds.filter(id => checked[id]).length;
+  const total = dM + dT;
+  const allT = 6 + tIds.length;
+  const pct = Math.round(total / allT * 100);
+  return { dM, dT, total, allT, pct, isComplete: total === allT };
+}
+
+function updateUI(){
+  const { dM, dT, total, allT, pct, isComplete } = getStats();
+  const tIds = getTardeIds();
+
+  // Section bars
+  document.getElementById('cnt-m').textContent = dM + '/6';
+  document.getElementById('bar-m').style.width = (dM/6*100) + '%';
+  document.getElementById('ki-m').textContent = '⚡'.repeat(dM) + '○'.repeat(6-dM);
+
+  document.getElementById('cnt-t').textContent = dT + '/' + tIds.length;
+  document.getElementById('bar-t').style.width = (dT/tIds.length*100) + '%';
+  const s5 = Math.round(dT/tIds.length*5);
+  document.getElementById('ki-t').textContent = '⚡'.repeat(s5) + '○'.repeat(5-s5);
+
+  // Header
+  document.getElementById('ki-mini-fill').style.width = pct + '%';
+  document.getElementById('ki-mini-pct').textContent = pct + '%';
+
+  // Reward
+  const stage = Math.min(Math.floor(total/allT*6), 6);
+  const balls = Math.round(total/allT*7);
+  document.getElementById('rw-ki').textContent = total * 1000;
+  document.getElementById('rw-phase').textContent = PHASE_ICONS[stage] + ' ' + PHASES[stage];
+  document.getElementById('rw-stars').textContent = '🟡'.repeat(balls) + '○'.repeat(7-balls);
+  document.getElementById('rw-msg').textContent = isComplete ? '🎉 DIA COMPLETO! VOCÊ É UM SUPER SAIYAJIN! 🎉' : MSGS[stage];
+
+  // Save pct to history
+  const key = getKeyForTab(activeTab);
+  if(!state.history[key]) state.history[key] = { checked: {} };
+  state.history[key].pct = pct;
+  state.history[key].total = total;
+  state.history[key].allT = allT;
+  saveState(state);
+
+  buildTabs();
+  updateStreak();
+
+  // Date header
+  const now = new Date();
+  const todayTab = jsDayToTab(now.getDay());
+  const diffDays = activeTab - todayTab;
+  const d = new Date(now); d.setDate(d.getDate() + diffDays);
+  const opts = { weekday:'long', day:'numeric', month:'long' };
+  document.getElementById('header-date').textContent =
+    (activeTab === todayTab ? '🗓️ HOJE · ' : '') +
+    d.toLocaleDateString('pt-BR', opts).toUpperCase();
+
+  // Show complete overlay only for today and first time
+  if(isComplete && activeTab === todayTab && !state.history[key].celebrated){
+    state.history[key].celebrated = true;
+    saveState(state);
+    setTimeout(() => showComplete(), 400);
+  }
+}
+
+function updateStreak(){
+  let streak = 0;
+  const today = new Date();
+  for(let i = 0; i < 365; i++){
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0,10);
+    const entry = state.history[key];
+    if(entry && entry.pct === 100) streak++;
+    else if(i > 0) break;
+  }
+  state.bestStreak = Math.max(state.bestStreak || 0, streak);
+  saveState(state);
+  document.getElementById('streak-num').textContent = streak;
+  document.getElementById('hist-streak').textContent = streak;
+  document.getElementById('streak-best').textContent = 'Melhor: ' + state.bestStreak + ' dias';
+}
+
+// ── SCREENS ──
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if(name === 'history') renderHistory();
+  if(name === 'ach') renderAchievements();
+  if(name === 'settings') document.getElementById('name-input').value = state.name || '';
+}
+
+// ── HISTORY ──
+function renderHistory(){
+  updateStreak();
+  renderWeekGrid();
+
+  const entries = Object.entries(state.history)
+    .filter(([k,v]) => v && v.pct !== undefined)
+    .sort((a,b) => b[0].localeCompare(a[0]))
+    .slice(0, 60);
+
+  const container = document.getElementById('hist-entries');
+  if(entries.length === 0){ container.innerHTML = '<div style="text-align:center;color:#333;font-size:13px;padding:20px;font-weight:700;">Nenhum histórico ainda. Comece hoje! ⚡</div>'; return; }
+
+  const months = {};
+  entries.forEach(([key, val]) => {
+    const d = new Date(key + 'T12:00:00');
+    const mKey = d.toLocaleDateString('pt-BR', {month:'long', year:'numeric'}).toUpperCase();
+    if(!months[mKey]) months[mKey] = [];
+    months[mKey].push([key, val]);
+  });
+
+  container.innerHTML = Object.entries(months).map(([month, items]) => `
+    <div class="hist-month">
+      <div class="hist-month-name">${month}</div>
+      <div class="hist-entries">
+        ${items.map(([key, val]) => {
+          const d = new Date(key + 'T12:00:00');
+          const label = d.toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'short'}).toUpperCase();
+          const pct = val.pct || 0;
+          const cls = pct === 100 ? 'full' : pct > 0 ? 'partial' : 'empty';
+          const icon = pct === 100 ? '⭐' : pct > 50 ? '⚡' : pct > 0 ? '🔸' : '○';
+          return `<div class="hist-entry">
+            <span class="he-date">${label}</span>
+            <div class="he-bar-wrap"><div class="he-bar ${cls}" style="width:${pct}%"></div></div>
+            <span class="he-pct ${cls}">${pct}%</span>
+            <span class="he-icon">${icon}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderWeekGrid(){
+  const days = ['SEG','TER','QUA','QUI','SEX','SÁB','DOM'];
+  const icons = ['☀️','⚡','🔥','💥','🐲','🌙','🌙'];
+  const now = new Date();
+  const todayTab = jsDayToTab(now.getDay());
+  const grid = document.getElementById('week-grid');
+  grid.innerHTML = days.map((d, i) => {
+    const diff = i - todayTab;
+    const date = new Date(now); date.setDate(date.getDate() + diff);
+    const key = date.toISOString().slice(0,10);
+    const entry = state.history[key];
+    const pct = entry ? (entry.pct || 0) : 0;
+    let cls = '';
+    if(pct === 100) cls = 'done';
+    else if(pct > 0) cls = 'partial';
+    if(i === todayTab) cls += ' today';
+    const icon = pct === 100 ? '⭐' : pct > 0 ? '⚡' : (diff > 0 ? '•' : icons[i]);
+    return `<div class="week-day ${cls}">
+      <div class="wd-name">${d}</div>
+      <div class="wd-icon">${icon}</div>
+      <div class="wd-pct">${pct > 0 ? pct + '%' : diff <= 0 ? '—' : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── ACHIEVEMENTS ──
+function checkAchievements(){
+  const { dM, total, allT, isComplete } = getStats();
+  let streak = 0;
+  const today = new Date();
+  for(let i = 0; i < 365; i++){
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0,10);
+    const entry = state.history[key];
+    if(entry && entry.pct === 100) streak++;
+    else if(i > 0) break;
+  }
+  // Count specific tasks
+  let violinCount = 0, readingCount = 0;
+  Object.values(state.history).forEach(e => {
+    if(e.checked){
+      if(e.checked['t6b']) violinCount++;
+      if(e.checked['t9']) readingCount++;
+    }
+  });
+  const statsObj = { totalDone: total, morningDone: dM, isComplete, streak, violinCount, readingCount };
+
+  ACHIEVEMENTS.forEach(ach => {
+    if(!state.achUnlocked.includes(ach.id) && ach.check(statsObj)){
+      state.achUnlocked.push(ach.id);
+      saveState(state);
+      showToast('🏆 Conquista desbloqueada: ' + ach.name + '!');
+    }
+  });
+}
+
+function renderAchievements(){
+  const grid = document.getElementById('ach-grid');
+  const { total, isComplete, dM } = getStats();
+  let streak = parseInt(document.getElementById('streak-num').textContent) || 0;
+  let violinCount = 0, readingCount = 0;
+  Object.values(state.history).forEach(e => {
+    if(e.checked){
+      if(e.checked['t6b']) violinCount++;
+      if(e.checked['t9']) readingCount++;
+    }
+  });
+  const statsObj = { totalDone: total, morningDone: dM, isComplete, streak, violinCount, readingCount };
+
+  grid.innerHTML = ACHIEVEMENTS.map(ach => {
+    const unlocked = state.achUnlocked.includes(ach.id) || ach.check(statsObj);
+    return `<div class="ach-card ${unlocked ? 'unlocked' : ''}">
+      <div class="ach-icon">${ach.icon}</div>
+      <div class="ach-name">${ach.name}</div>
+      <div class="ach-desc">${ach.desc}</div>
+      <div class="ach-lock">${unlocked ? '✅ DESBLOQUEADO' : '🔒 Bloqueado'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── SETTINGS ──
+function saveName(){
+  const val = document.getElementById('name-input').value.trim();
+  if(val){ state.name = val; saveState(state); showToast('Nome salvo: ' + val + '! 🔥'); }
+}
+
+function resetToday(){
+  const key = getKeyForTab(activeTab);
+  if(state.history[key]){ state.history[key] = { checked:{}, pct:0, total:0 }; }
+  saveState(state);
+  loadTabData();
+  updateUI();
+  showToast('Dia reiniciado! ↺');
+}
+
+function clearAllData(){
+  if(confirm('Apagar todo o histórico? Não pode ser desfeito!')){
+    state.history = {}; state.bestStreak = 0; state.achUnlocked = [];
+    saveState(state);
+    loadTabData();
+    updateUI();
+    showToast('Histórico apagado.');
+  }
+}
+
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
+
+function triggerInstall(){
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+  } else {
+    showToast('Abra no Chrome e toque em "Adicionar à tela inicial" ✓');
+  }
+}
+
+// ── TOAST ──
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── COMPLETE ──
+function showComplete(){
+  const name = state.name || 'Guerreiro';
+  document.getElementById('co-sub').textContent = name + ', você completou todas as missões! 🔥';
+  document.getElementById('complete-overlay').classList.add('show');
+  if(navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+}
+function closeComplete(){ document.getElementById('complete-overlay').classList.remove('show'); }
+
+// ── SERVICE WORKER ──
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// ── INIT ──
+window.addEventListener('load', () => {
+  // Build initial tab layout
+  document.querySelectorAll('.day-task').forEach(el => el.style.display = 'none');
+  (DAY_TASKS[activeTab] || []).forEach(id => {
+    const el = document.querySelector('[data-id="' + id + '"]');
+    if(el) el.style.display = 'flex';
+  });
+  buildTabs();
+  loadTabData();
+  updateUI();
+
+  // Hide splash after 1.8s
+  setTimeout(() => {
+    document.getElementById('splash').classList.add('hide');
+    setTimeout(() => document.getElementById('splash').style.display = 'none', 650);
+  }, 1800);
+});
+</script>
+</body>
+</html>
