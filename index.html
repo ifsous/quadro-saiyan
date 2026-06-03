@@ -566,9 +566,24 @@ const DEFAULT_T_TASKS = [
 ];
 
 // ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+function localISO(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function escapeHTML(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+async function hashPin(pin){
+  const data = new TextEncoder().encode('diasaiyan-v2-' + pin);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-function loadState(){ try{ return JSON.parse(localStorage.getItem('diasaiyan_v2')||'{}') }catch(e){return{}} }
+function loadState(){ try{ return JSON.parse(localStorage.getItem('diasaiyan_v2')||'{}') }catch(e){ return {} } }
 function saveState(){ localStorage.setItem('diasaiyan_v2', JSON.stringify(state)) }
 
 let state = loadState();
@@ -576,7 +591,6 @@ if(!state.history)    state.history = {};
 if(!state.name)       state.name = 'Guerreiro';
 if(!state.bestStreak) state.bestStreak = 0;
 if(!state.ach)        state.ach = [];
-if(!state.pin)        state.pin = '1234';
 if(!state.notifs)     state.notifs = {};
 if(!state.mTasks)     state.mTasks = JSON.parse(JSON.stringify(DEFAULT_M_TASKS));
 if(!state.tTasks)     state.tTasks = JSON.parse(JSON.stringify(DEFAULT_T_TASKS));
@@ -584,8 +598,20 @@ if(!state.tTasks)     state.tTasks = JSON.parse(JSON.stringify(DEFAULT_T_TASKS))
 // Migrate old tasks if needed
 if(state.mTasks.length !== DEFAULT_M_TASKS.length) state.mTasks = JSON.parse(JSON.stringify(DEFAULT_M_TASKS));
 
+// Migrate plaintext PIN → hashed pinHash
+async function migratePin(){
+  if(state.pin && !state.pinHash){
+    state.pinHash = await hashPin(state.pin);
+    delete state.pin;
+    saveState();
+  } else if(!state.pinHash){
+    state.pinHash = await hashPin('1234');
+    saveState();
+  }
+}
+
 // Day management
-function todayISO(){ return new Date().toISOString().slice(0,10) }
+function todayISO(){ return localISO(new Date()) }
 function jsDayToTab(d){ return d===0?6:d-1 }
 let activeTab = jsDayToTab(new Date().getDay());
 
@@ -672,12 +698,18 @@ function makeTaskEl(t, isTarde){
   const badgeHTML = t.badge === 'sp' ? '<span class="tbadge bsp">'+(t.day===0?'SEG':t.day===1?'TER':t.day===2?'QUA':'')+'</span>'
                   : t.badge === 'ev' ? '<span class="tbadge bev">Sempre</span>' : '';
 
-  const timerHTML = t.dur ? `<span class="timer-btn" onclick="event.stopPropagation();openTimer('${t.id}','${t.emoji}','${t.name.replace(/'/g,"\\'")}',${t.dur})">⏱️</span>` : '';
+  const timerHTML = t.dur ? `<span class="timer-btn" data-timer-id="${escapeHTML(t.id)}" onclick="event.stopPropagation();openTimerByEl(this)">⏱️</span>` : '';
 
-  div.innerHTML = `<div class="chk">✓</div><div class="temi">${t.emoji}</div>
-    <div class="tinfo"><div class="tname">${t.name}</div><div class="ttime">${t.time} · máx ${t.dur} min</div></div>
+  div.innerHTML = `<div class="chk">✓</div><div class="temi">${escapeHTML(t.emoji)}</div>
+    <div class="tinfo"><div class="tname">${escapeHTML(t.name)}</div><div class="ttime">${escapeHTML(t.time)} · máx ${Number(t.dur)} min</div></div>
     ${badgeHTML}${timerHTML}`;
   return div;
+}
+
+function openTimerByEl(el){
+  const id = el.dataset.timerId;
+  const task = [...state.mTasks, ...state.tTasks].find(t=>t.id===id);
+  if(task) openTimer(task.id, task.emoji, task.name, task.dur);
 }
 
 // ═══════════════════════════════════════════
@@ -687,7 +719,23 @@ function getKeyForTab(tab){
   const now = new Date();
   const todayTab = jsDayToTab(now.getDay());
   const d = new Date(now); d.setDate(d.getDate() + (tab - todayTab));
-  return d.toISOString().slice(0,10);
+  return localISO(d);
+}
+
+// Streak cache — invalidates when today's pct changes
+let _streakCache = null;
+function calcStreak(){
+  const today = todayISO();
+  const todayPct = (state.history[today]||{}).pct||0;
+  if(_streakCache && _streakCache.date===today && _streakCache.pct===todayPct) return _streakCache.value;
+  let streak=0; const d=new Date();
+  for(let i=0;i<365;i++){
+    const e=state.history[localISO(d)];
+    if(e&&e.pct===100) streak++; else if(i>0) break;
+    d.setDate(d.getDate()-1);
+  }
+  _streakCache={date:today, pct:todayPct, value:streak};
+  return streak;
 }
 
 function buildTabs(){
@@ -802,12 +850,7 @@ function updateUI(){
 }
 
 function updateStreak(){
-  let streak=0; const today = new Date();
-  for(let i=0;i<365;i++){
-    const d=new Date(today); d.setDate(d.getDate()-i);
-    const e=state.history[d.toISOString().slice(0,10)];
-    if(e&&e.pct===100) streak++; else if(i>0) break;
-  }
+  const streak = calcStreak();
   state.bestStreak = Math.max(state.bestStreak||0, streak); saveState();
   document.getElementById('streak-num').textContent = streak;
   document.getElementById('hist-streak').textContent = streak;
@@ -884,8 +927,8 @@ function renderNotifList(){
     const enabled = !!state.notifs[t.id];
     const div = document.createElement('div');
     div.className='ntog';
-    div.innerHTML=`<div class="ntog-info"><div class="ntog-name">${t.emoji} ${t.name}</div><div class="ntog-time">${t.time} · ${t.notifOffset} min antes</div></div>
-      <div class="toggle ${enabled?'on':''}" onclick="toggleNotif('${t.id}',this)"></div>`;
+    div.innerHTML=`<div class="ntog-info"><div class="ntog-name">${escapeHTML(t.emoji)} ${escapeHTML(t.name)}</div><div class="ntog-time">${escapeHTML(t.time)} · ${Number(t.notifOffset)} min antes</div></div>
+      <div class="toggle ${enabled?'on':''}" onclick="toggleNotif('${escapeHTML(t.id)}',this)"></div>`;
     c.appendChild(div);
   });
 }
@@ -943,7 +986,7 @@ function renderHistory(){
   const wg=document.getElementById('wgrid'); wg.innerHTML='';
   days.forEach((d,i)=>{
     const diff=i-todayTab; const date=new Date(now); date.setDate(date.getDate()+diff);
-    const e=state.history[date.toISOString().slice(0,10)]; const pct=e?(e.pct||0):0;
+    const e=state.history[localISO(date)]; const pct=e?(e.pct||0):0;
     let cls=''; if(pct===100) cls='wdone'; else if(pct>0) cls='wpart'; if(i===todayTab) cls+=' wtoday';
     wg.innerHTML+=`<div class="wday ${cls}"><div class="wdn">${d}</div><div class="wdi">${pct===100?'⭐':pct>0?'⚡':diff<=0?icos[i]:'·'}</div><div class="wdp">${pct>0?pct+'%':diff<=0?'—':''}</div></div>`;
   });
@@ -964,8 +1007,7 @@ function renderHistory(){
 // ═══════════════════════════════════════════
 function checkAchievements(){
   const {dM:mDone, total:done, complete} = getStats();
-  let streak=0; const today=new Date();
-  for(let i=0;i<365;i++){ const d=new Date(today);d.setDate(d.getDate()-i);const e=state.history[d.toISOString().slice(0,10)];if(e&&e.pct===100)streak++;else if(i>0)break; }
+  const streak = calcStreak();
   let violinC=0,readC=0;
   Object.values(state.history).forEach(e=>{ if(e.checked){ if(e.checked['t6b']) violinC++; if(e.checked['t9']) readC++; } });
   const s={done,mDone,complete,streak,violinC,readC};
@@ -1041,14 +1083,41 @@ function exportICS(){
 // PARENTS PANEL
 // ═══════════════════════════════════════════
 let pinBuffer='';
-function openParentsPin(){ pinBuffer=''; updatePinDots(); document.getElementById('pin-err').textContent=''; document.getElementById('pin-overlay').classList.add('show'); }
+let pinAttempts=0, pinLockUntil=0;
+
+function openParentsPin(){
+  pinBuffer=''; updatePinDots();
+  document.getElementById('pin-err').textContent='';
+  document.getElementById('pin-overlay').classList.add('show');
+}
 function closePinOverlay(){ document.getElementById('pin-overlay').classList.remove('show'); }
+
 function pinKey(k){
+  const now=Date.now();
+  if(now < pinLockUntil){
+    const secs=Math.ceil((pinLockUntil-now)/1000);
+    document.getElementById('pin-err').textContent=`Bloqueado por ${secs}s. Tente novamente.`;
+    return;
+  }
   if(pinBuffer.length>=4) return;
   pinBuffer+=k; updatePinDots();
   if(pinBuffer.length===4){
-    if(pinBuffer===state.pin){ closePinOverlay(); openParents(); }
-    else{ document.getElementById('pin-err').textContent='PIN incorreto. Tente novamente.'; setTimeout(()=>{ pinBuffer=''; updatePinDots(); document.getElementById('pin-err').textContent=''; },800); }
+    const attempt=pinBuffer;
+    hashPin(attempt).then(hash=>{
+      if(hash===state.pinHash){
+        pinAttempts=0; closePinOverlay(); openParents();
+      } else {
+        pinAttempts++;
+        let msg='PIN incorreto. Tente novamente.';
+        if(pinAttempts>=3){
+          const lockSecs=Math.min(30*Math.pow(2,pinAttempts-3),300);
+          pinLockUntil=Date.now()+lockSecs*1000;
+          msg=`PIN incorreto. Bloqueado por ${lockSecs}s.`;
+        }
+        document.getElementById('pin-err').textContent=msg;
+        setTimeout(()=>{ pinBuffer=''; updatePinDots(); document.getElementById('pin-err').textContent=''; },800);
+      }
+    });
   }
 }
 function pinBack(){ pinBuffer=pinBuffer.slice(0,-1); updatePinDots(); }
@@ -1061,8 +1130,9 @@ function openParents(){
 function closeParents(){ document.getElementById('parents-screen').classList.remove('show'); }
 function savePin(){
   const v=document.getElementById('pin-new').value.trim();
-  if(v.length===4&&/^\d+$/.test(v)){ state.pin=v; saveState(); showToast('PIN salvo!'); document.getElementById('pin-new').value=''; }
-  else showToast('PIN deve ter 4 dígitos.');
+  if(v.length===4&&/^\d{4}$/.test(v)){
+    hashPin(v).then(hash=>{ state.pinHash=hash; delete state.pin; saveState(); showToast('PIN salvo!'); document.getElementById('pin-new').value=''; });
+  } else showToast('PIN deve ter exatamente 4 dígitos numéricos.');
 }
 
 function renderParentsStats(){
@@ -1071,7 +1141,7 @@ function renderParentsStats(){
   const pg=document.getElementById('par-week-grid'); pg.innerHTML='';
   days.forEach((d,i)=>{
     const diff=i-todayTab; const date=new Date(now); date.setDate(date.getDate()+diff);
-    const e=state.history[date.toISOString().slice(0,10)]; const pct=e?(e.pct||0):0;
+    const e=state.history[localISO(date)]; const pct=e?(e.pct||0):0;
     let cls=''; if(pct===100) cls='pwdone'; else if(pct>0) cls='pwpart';
     pg.innerHTML+=`<div class="par-wd ${cls}"><div class="par-wdn">${d}</div><div class="par-wdp">${pct>0?pct+'%':'—'}</div></div>`;
   });
@@ -1079,11 +1149,10 @@ function renderParentsStats(){
   const entries=Object.entries(state.history).filter(([k,v])=>v&&v.pct!==undefined);
   const total=entries.length; const complete=entries.filter(([k,v])=>v.pct===100).length;
   const avg=total>0?Math.round(entries.reduce((s,[k,v])=>s+(v.pct||0),0)/total):0;
-  let streak=0; const today=new Date();
-  for(let i=0;i<365;i++){ const d=new Date(today);d.setDate(d.getDate()-i);const e=state.history[d.toISOString().slice(0,10)];if(e&&e.pct===100)streak++;else if(i>0)break; }
+  const streak=calcStreak();
 
   document.getElementById('par-stats').innerHTML=[
-    ['Nome do guerreiro', state.name],
+    ['Nome do guerreiro', escapeHTML(state.name)],
     ['Dias registrados', total+' dias'],
     ['Dias 100% completos', complete+' dias'],
     ['Média diária', avg+'%'],
@@ -1100,7 +1169,7 @@ function openEditModal(){
   renderEditLists();
   document.getElementById('edit-modal').classList.add('show');
 }
-function closeEditModal(){ document.getElementById('edit-modal').classList.remove('show'); }
+function closeEditModal(){ document.getElementById('edit-modal').classList.remove('show'); emojiIdx={}; }
 
 function renderEditLists(){
   renderEditSection('em-manha-list', state.mTasks);
@@ -1111,15 +1180,15 @@ function renderEditSection(containerId, tasks){
   const c=document.getElementById(containerId); c.innerHTML='';
   tasks.forEach(t=>{
     const d=document.createElement('div'); d.className='em-task'; d.dataset.id=t.id;
-    d.innerHTML=`<div class="em-emoji" title="Clique para mudar emoji" onclick="cycleEmoji(this,'${t.id}')">${t.emoji}</div>
+    d.innerHTML=`<div class="em-emoji" title="Clique para mudar emoji" onclick="cycleEmoji(this,'${escapeHTML(t.id)}')">${escapeHTML(t.emoji)}</div>
       <div class="em-fields">
-        <input class="em-inp" data-field="name" value="${t.name}" placeholder="Nome da tarefa">
+        <input class="em-inp" data-field="name" value="${escapeHTML(t.name)}" placeholder="Nome da tarefa">
         <div style="display:flex;gap:6px">
-          <input class="em-inp" data-field="time" value="${t.time}" placeholder="Horário (HH:MM)" style="flex:1">
-          <input class="em-inp" data-field="dur" value="${t.dur}" placeholder="Min" type="number" min="1" max="120" style="width:60px">
+          <input class="em-inp" data-field="time" value="${escapeHTML(t.time)}" placeholder="Horário (HH:MM)" style="flex:1">
+          <input class="em-inp" data-field="dur" value="${Number(t.dur)}" placeholder="Min" type="number" min="1" max="120" style="width:60px">
         </div>
       </div>
-      <span class="em-del" onclick="deleteEditTask('${t.id}')">🗑️</span>`;
+      <span class="em-del" onclick="deleteEditTask('${escapeHTML(t.id)}')">🗑️</span>`;
     c.appendChild(d);
   });
 }
@@ -1180,9 +1249,7 @@ function showToast(msg){ const t=document.getElementById('toast'); t.textContent
 // SERVICE WORKER
 // ═══════════════════════════════════════════
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js')
-    .then(reg=>{ console.log('SW ok'); })
-    .catch(()=>{});
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 
 // ═══════════════════════════════════════════
@@ -1190,6 +1257,7 @@ if('serviceWorker' in navigator){
 // ═══════════════════════════════════════════
 window.addEventListener('load', ()=>{
   checkAutoReset();
+  migratePin();
 
   // Splash quote
   document.getElementById('splash-quote').textContent = QUOTES[Math.floor(Math.random()*QUOTES.length)];
